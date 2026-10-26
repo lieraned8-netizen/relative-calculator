@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>親戚稱謂計算機</title>
+<style>
+:root{--bg:#e9ece8;--ink:#1d2a2c;--sub:#5b6a6a;--body:#22343a;--lcd:#dbe7dc;--lcd-ink:#1c2b24;--k-sys:#4b5d63;--k-par:#2f6f73;--k-sib:#3d6d9c;--k-sp:#8a5a8f;--k-kid:#b27a2c;--eq:#c8412f;--card:#f6f8f5;--line:#cfd6d0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121819;--ink:#e3ebe8;--sub:#93a3a0;--card:#1b2427;--line:#2d3a3d}}
+:root[data-theme="dark"]{--bg:#121819;--ink:#e3ebe8;--sub:#93a3a0;--card:#1b2427;--line:#2d3a3d}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;min-height:100%;padding:env(safe-area-inset-top,0px) 14px env(safe-area-inset-bottom,0px)}
+.wrap{max-width:420px;margin:0 auto;padding:18px 0 28px}
+h1{font-size:18px;margin:0 0 4px;font-weight:700}
+.tip{font-size:13px;color:var(--sub);margin:0 0 14px;line-height:1.6}
+.calc{background:var(--body);border-radius:22px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.lcd{background:var(--lcd);color:var(--lcd-ink);border-radius:12px;padding:12px 14px;min-height:196px;display:flex;flex-direction:column;justify-content:space-between}
+.path{font-size:15px;line-height:1.7;min-height:52px;word-break:break-all}
+.path b{font-weight:500;background:rgba(28,43,36,.12);border-radius:6px;padding:1px 7px;margin-right:2px;display:inline-block}
+.path i{font-style:normal;opacity:.55;margin-right:2px}
+.res{font-family:"Noto Serif TC","Songti TC","PMingLiU",serif;font-size:40px;font-weight:700;text-align:right;line-height:1.25;margin-top:8px;overflow-wrap:anywhere}
+.res.long{font-size:30px}
+.formal{text-align:right;font-size:14px;min-height:20px}
+.tw{text-align:right;font-size:14px;min-height:20px;margin-top:2px;font-weight:500}
+.note{text-align:right;font-size:13px;opacity:.8;min-height:20px;line-height:1.5;margin-top:2px}
+.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:12px}
+button{font:inherit;border:0;border-radius:12px;color:#fff;font-size:18px;font-weight:600;min-height:56px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.28);-webkit-tap-highlight-color:transparent}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.28)}
+button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.sys{background:var(--k-sys)}.par{background:var(--k-par)}.sib{background:var(--k-sib)}.sp{background:var(--k-sp)}.kid{background:var(--k-kid)}
+.eq{background:var(--eq);grid-column:1/-1;min-height:52px}
+.hist{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.hist h2{font-size:14px;margin:0 0 8px}
+.hist ul{list-style:none;margin:0;padding:0;font-size:14px}
+.hist li{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
+.hist li:first-child{border-top:0}
+.hist li span:last-child{font-weight:700;text-align:right}
+.empty{color:var(--sub);font-size:13px}
+.clr{background:none;color:var(--sub);box-shadow:none;font-size:13px;min-height:0;padding:0;margin-top:8px;font-weight:400;text-decoration:underline}
+.tools{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:12px}.tools button{min-height:48px;font-size:16px}
+.foot{font-size:12px;color:var(--sub);line-height:1.7;margin-top:16px}
+@media (prefers-reduced-motion:reduce){button{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>親戚稱謂計算機</h1>
+  <p class="tip">從「我」出發，依序按下關係，例如「爸爸 → 哥哥 → 老婆」，就會算出該怎麼稱呼（台灣用語）。</p>
+
+  <div class="calc">
+    <div class="lcd" aria-live="polite">
+      <div class="path" id="path"></div>
+      <div>
+        <div class="res" id="res">我</div>
+        <div class="formal" id="formal"></div>
+        <div class="tw" id="tw"></div>
+        <div class="note" id="note"></div>
+      </div>
+    </div>
+    <div class="keys">
+      <button class="sys" data-act="ac">AC</button>
+      <button class="sys" data-act="del" aria-label="刪除上一步">⌫</button>
+      <button class="par" data-k="F">爸爸</button>
+      <button class="par" data-k="M">媽媽</button>
+      <button class="sib" data-k="E">哥哥</button>
+      <button class="sib" data-k="L">弟弟</button>
+      <button class="sib" data-k="e">姊姊</button>
+      <button class="sib" data-k="l">妹妹</button>
+      <button class="sp" data-k="H">老公</button>
+      <button class="sp" data-k="W">老婆</button>
+      <button class="kid" data-k="S">兒子</button>
+      <button class="kid" data-k="D">女兒</button>
+      <button class="eq" data-act="eq">＝ 記下這個稱謂</button>
+    </div>
+  </div>
+
+  <div class="tools"><button class="sys" id="say">朗讀</button><button class="sys" id="share">分享</button><button class="par" id="fam">存入家人</button></div>
+  <div class="hist" style="margin-top:14px"><h2>我的家人（點右側可刪除）</h2><ul id="famlist"></ul></div>
+
+  <div class="hist">
+    <h2>最近查詢</h2>
+    <ul id="hist"></ul>
+    <button class="clr" id="clr" hidden>清除紀錄</button>
+  </div>
+
+  <p class="foot">稱謂會因家族、地區與族群（閩南、客家等）略有差異，本工具以台灣常見用法為主，僅供參考；有排行時可在稱謂前加「大、二、三…」，最小的常加「小」或「么」。</p>
+</div>
+
+<script>
+// 資料格式：路徑|當面稱呼|正式稱謂|說明
+// F父 M母 E哥 L弟 e姊 l妹 H夫 W妻 S子 D女
+const RAW = `
+F|爸爸|父親|
+M|媽媽|母親|
+E|哥哥|兄長|有多位時依排行叫「大哥、二哥」
+L|弟弟|弟弟|
+e|姊姊|姊姊|有多位時依排行叫「大姊、二姊」
+l|妹妹|妹妹|
+H|老公|丈夫|
+W|老婆|妻子|
+S|兒子|兒子|
+D|女兒|女兒|
+FF|爺爺|祖父|閩南語常叫「阿公」
+FM|奶奶|祖母|閩南語常叫「阿嬤」
+MF|外公|外祖父|閩南語常叫「外公、阿公」
+MM|外婆|外祖母|閩南語常叫「外婆、阿嬤」
+FE|伯父|伯父|爸爸的哥哥；有多位時叫「大伯、二伯」，口語也叫「伯伯」
+FEW|伯母|伯母|爸爸哥哥的太太
+FL|叔叔|叔父|爸爸的弟弟；有多位時叫「二叔、三叔」，最小的常叫「小叔」
+FLW|嬸嬸|嬸母|爸爸弟弟的太太
+Fe|姑姑|姑母|爸爸的姊姊；口語也叫「姑媽」，有多位時叫「大姑、二姑」
+FeH|姑丈|姑丈|姑姑的先生
+Fl|姑姑|姑母|爸爸的妹妹；口語也叫「姑媽」，最小的常叫「小姑」
+FlH|姑丈|姑丈|姑姑的先生
+ME|舅舅|舅父|媽媽的哥哥；有多位時叫「大舅、二舅」
+MEW|舅媽|舅母|媽媽哥哥的太太
+ML|舅舅|舅父|媽媽的弟弟；最小的常叫「小舅」
+MLW|舅媽|舅母|媽媽弟弟的太太
+Me|阿姨|姨母|媽媽的姊姊；有多位時叫「大阿姨、二阿姨」，也有人叫「姨媽」
+MeH|姨丈|姨丈|阿姨的先生
+Ml|阿姨|姨母|媽媽的妹妹；最小的常叫「小阿姨」
+MlH|姨丈|姨丈|阿姨的先生
+FFF|曾祖父|曾祖父|閩南語常叫「祖公、阿祖」
+FFM|曾祖母|曾祖母|閩南語常叫「祖媽、阿祖」
+FMF|曾外祖父|曾外祖父|爸爸的外公
+FMM|曾外祖母|曾外祖母|爸爸的外婆
+MFF|曾外祖父|曾外祖父|外公的爸爸
+MFM|曾外祖母|曾外祖母|外公的媽媽
+FFE|伯公|伯祖父|爺爺的哥哥
+FFEW|伯婆|伯祖母|爺爺哥哥的太太
+FFL|叔公|叔祖父|爺爺的弟弟
+FFLW|嬸婆|叔祖母|爺爺弟弟的太太
+FFe|姑婆|姑祖母|爺爺的姊姊
+FFl|姑婆|姑祖母|爺爺的妹妹
+FFeH|姑丈公|姑丈公|姑婆的先生
+FFlH|姑丈公|姑丈公|姑婆的先生
+FME|舅公|舅祖父|奶奶的哥哥
+FML|舅公|舅祖父|奶奶的弟弟
+FMEW|舅婆|舅祖母|奶奶兄弟的太太
+FMLW|舅婆|舅祖母|奶奶兄弟的太太
+FMe|姨婆|姨祖母|奶奶的姊姊
+FMl|姨婆|姨祖母|奶奶的妹妹
+FMeH|姨公|姨祖父|姨婆的先生
+FMlH|姨公|姨祖父|姨婆的先生
+MFE|外伯公|外伯祖父|外公的哥哥
+MFL|外叔公|外叔祖父|外公的弟弟
+MFEW|外伯婆|外伯祖母|外公哥哥的太太
+MFLW|外嬸婆|外叔祖母|外公弟弟的太太
+MFe|外姑婆|外姑祖母|外公的姊姊
+MFl|外姑婆|外姑祖母|外公的妹妹
+MFeH|外姑丈公|外姑丈公|外姑婆的先生
+MFlH|外姑丈公|外姑丈公|外姑婆的先生
+MME|外舅公|外舅祖父|外婆的哥哥
+MML|外舅公|外舅祖父|外婆的弟弟
+MMEW|外舅婆|外舅祖母|外婆兄弟的太太
+MMLW|外舅婆|外舅祖母|外婆兄弟的太太
+MMe|外姨婆|外姨祖母|外婆的姊姊
+MMl|外姨婆|外姨祖母|外婆的妹妹
+MMeH|外姨公|外姨祖父|外姨婆的先生
+MMlH|外姨公|外姨祖父|外姨婆的先生
+HF|公公|公公（翁）|先生的爸爸；當面多跟著先生叫「爸爸」
+HM|婆婆|婆婆|先生的媽媽；當面多跟著先生叫「媽媽」
+WF|爸爸|岳父|太太的爸爸；對外介紹說「岳父」，也有人叫「丈人」
+WM|媽媽|岳母|太太的媽媽；對外介紹說「岳母」，也有人叫「丈母娘」
+HE|大哥|大伯|先生的哥哥；有多位時叫「大哥、二哥」
+HEW|大嫂|大嫂|先生哥哥的太太
+HL|小叔|小叔|先生的弟弟；或直接叫名字
+HLW|弟妹|弟妹|先生弟弟的太太
+He|大姊|大姑|先生的姊姊；或叫「大姊、二姊」
+HeH|姊夫|姊夫|先生姊姊的先生
+Hl|小姑|小姑|先生的妹妹；或直接叫名字
+HlH|妹夫|妹夫|先生妹妹的先生
+WE|大舅|大舅子|太太的哥哥；當面常叫「大哥」
+WL|小舅|小舅子|太太的弟弟；當面常叫名字或「小舅」
+We|大姨|大姨子|太太的姊姊；當面常叫「大姊」
+Wl|小姨|小姨子|太太的妹妹；當面常叫名字
+WeH|連襟|連襟|太太姊姊的先生，當面常叫「大姊夫」
+WlH|連襟|連襟|太太妹妹的先生，當面常叫名字
+EW|嫂嫂|嫂嫂|哥哥的太太；也叫「嫂子」
+LW|弟妹|弟媳|弟弟的太太
+eH|姊夫|姊夫|姊姊的先生
+lH|妹夫|妹婿|妹妹的先生
+SW|媳婦|媳婦|兒子的太太；當面常叫名字
+DH|女婿|女婿|女兒的先生；當面常叫名字
+SS|孫子|孫子|兒子的兒子；閩南語叫「大孫、內孫」
+SD|孫女|孫女|兒子的女兒
+DS|外孫|外孫|女兒的兒子
+DD|外孫女|外孫女|女兒的女兒
+ES|姪子|姪子|哥哥的兒子
+LS|姪子|姪子|弟弟的兒子
+ED|姪女|姪女|哥哥的女兒
+LD|姪女|姪女|弟弟的女兒
+eS|外甥|外甥|姊姊的兒子
+lS|外甥|外甥|妹妹的兒子
+eD|外甥女|外甥女|姊姊的女兒
+lD|外甥女|外甥女|妹妹的女兒
+ESW|姪媳婦|姪媳|哥哥兒子的太太
+LSW|姪媳婦|姪媳|弟弟兒子的太太
+FES|堂哥／堂弟|堂兄弟|爸爸哥哥的兒子；比你大叫堂哥，比你小叫堂弟
+FLS|堂哥／堂弟|堂兄弟|爸爸弟弟的兒子；比你大叫堂哥，比你小叫堂弟
+FED|堂姊／堂妹|堂姊妹|爸爸哥哥的女兒；比你大叫堂姊，比你小叫堂妹
+FLD|堂姊／堂妹|堂姊妹|爸爸弟弟的女兒；比你大叫堂姊，比你小叫堂妹
+FeS|表哥／表弟|表兄弟|姑姑的兒子；比你大叫表哥，比你小叫表弟
+FlS|表哥／表弟|表兄弟|姑姑的兒子；比你大叫表哥，比你小叫表弟
+FeD|表姊／表妹|表姊妹|姑姑的女兒；比你大叫表姊，比你小叫表妹
+FlD|表姊／表妹|表姊妹|姑姑的女兒；比你大叫表姊，比你小叫表妹
+MES|表哥／表弟|表兄弟|舅舅的兒子；比你大叫表哥，比你小叫表弟
+MLS|表哥／表弟|表兄弟|舅舅的兒子；比你大叫表哥，比你小叫表弟
+MED|表姊／表妹|表姊妹|舅舅的女兒；比你大叫表姊，比你小叫表妹
+MLD|表姊／表妹|表姊妹|舅舅的女兒；比你大叫表姊，比你小叫表妹
+MeS|表哥／表弟|表兄弟|阿姨的兒子；比你大叫表哥，比你小叫表弟
+MlS|表哥／表弟|表兄弟|阿姨的兒子；比你大叫表哥，比你小叫表弟
+MeD|表姊／表妹|表姊妹|阿姨的女兒；比你大叫表姊，比你小叫表妹
+MlD|表姊／表妹|表姊妹|阿姨的女兒；比你大叫表姊，比你小叫表妹
+MMF|曾外祖父|曾外祖父|外婆的爸爸
+MMM|曾外祖母|曾外祖母|外婆的媽媽
+HFF|爺爺|夫之祖父|先生的爺爺，多跟著先生叫
+HFM|奶奶|夫之祖母|先生的奶奶，多跟著先生叫
+HMF|外公|夫之外祖父|先生的外公，多跟著先生叫
+HMM|外婆|夫之外祖母|先生的外婆，多跟著先生叫
+WFF|爺爺|妻之祖父|太太的爺爺，多跟著太太叫
+WFM|奶奶|妻之祖母|太太的奶奶，多跟著太太叫
+WMF|外公|妻之外祖父|太太的外公，多跟著太太叫
+WMM|外婆|妻之外祖母|太太的外婆，多跟著太太叫
+HFE|伯公|夫之伯祖父|先生的伯父，多跟著先生叫
+HFEW|伯婆|夫之伯祖母|先生伯父的太太
+HFL|叔公|夫之叔祖父|先生的叔叔
+HFLW|嬸婆|夫之叔祖母|先生叔叔的太太
+HFe|姑婆|夫之姑祖母|先生的姑姑
+HFl|姑婆|夫之姑祖母|先生的姑姑
+HME|舅公|夫之舅祖父|先生的舅舅
+HML|舅公|夫之舅祖父|先生的舅舅
+HMe|姨婆|夫之姨祖母|先生的阿姨
+HMl|姨婆|夫之姨祖母|先生的阿姨
+SWF|親家公|親家公|兒子太太的爸爸
+SWM|親家母|親家母|兒子太太的媽媽
+DHF|親家公|親家公|女兒先生的爸爸
+DHM|親家母|親家母|女兒先生的媽媽
+SSW|孫媳婦|孫媳婦|孫子的太太
+SDH|孫女婿|孫女婿|孫女的先生
+DSW|外孫媳婦|外孫媳婦|外孫的太太
+DDH|外孫女婿|外孫女婿|外孫女的先生
+EDH|姪女婿|姪女婿|哥哥女兒的先生
+LDH|姪女婿|姪女婿|弟弟女兒的先生
+eSW|外甥媳婦|外甥媳婦|姊姊兒子的太太
+lSW|外甥媳婦|外甥媳婦|妹妹兒子的太太
+eDH|外甥女婿|外甥女婿|姊姊女兒的先生
+lDH|外甥女婿|外甥女婿|妹妹女兒的先生
+WEW|大嫂|妻之嫂|太太哥哥的太太
+WLW|弟妹|妻之弟媳|太太弟弟的太太
+EWF|親家公|親家公|嫂嫂的爸爸
+EWM|親家母|親家母|嫂嫂的媽媽
+LWF|親家公|親家公|弟妹的爸爸
+LWM|親家母|親家母|弟妹的媽媽
+eHF|親家公|親家公|姊夫的爸爸
+eHM|親家母|親家母|姊夫的媽媽
+lHF|親家公|親家公|妹夫的爸爸
+lHM|親家母|親家母|妹夫的媽媽
+`;
+const DB = {};
+RAW.trim().split("\n").forEach(l => { const [p, c, f, n] = l.split("|"); DB[p] = {call: c, formal: f, note: n}; });
+
+// 閩南語（漢字｜台羅），以「當面稱呼」為索引
+const TWRAW = `
+爸爸|阿爸|a-pa
+媽媽|阿母|a-bú
+哥哥|阿兄|a-hiann
+弟弟|小弟|sió-tī
+姊姊|阿姊|a-tsé
+妹妹|小妹|sió-muē
+老公|翁|ang
+老婆|牽手|khan-tshiú
+兒子|後生|hāu-sinn
+女兒|查某囝|tsa-bóo-kiánn
+爺爺|阿公|a-kong
+奶奶|阿嬤|a-má
+外公|外公|guā-kong
+外婆|外嬤|guā-má
+伯父|阿伯|a-peh
+伯母|阿姆|a-ḿ
+叔叔|阿叔|a-tsik
+嬸嬸|阿嬸|a-tsím
+姑姑|阿姑|a-koo
+姑丈|姑丈|koo-tiūnn
+舅舅|阿舅|a-kū
+舅媽|阿妗|a-kīm
+阿姨|阿姨|a-î
+姨丈|姨丈|î-tiūnn
+曾祖父|阿祖|a-tsóo
+曾祖母|阿祖|a-tsóo
+曾外祖父|外祖公|guā-tsóo-kong
+曾外祖母|外祖媽|guā-tsóo-má
+伯公|伯公|peh-kong
+伯婆|伯婆|peh-pô
+叔公|叔公|tsik-kong
+嬸婆|嬸婆|tsím-pô
+姑婆|姑婆|koo-pô
+姑丈公|姑丈公|koo-tiūnn-kong
+舅公|舅公|kū-kong
+舅婆|妗婆|kīm-pô
+姨婆|姨婆|î-pô
+姨公|姨公|î-kong
+公公|大官|ta-kuann
+婆婆|大家|ta-ke
+大哥|大兄|tuā-hiann
+大姊|大姊|tuā-tsé
+大嫂|阿嫂|a-só
+嫂嫂|阿嫂|a-só
+小叔|小叔|sió-tsik
+小姑|小姑|sió-koo
+弟妹|小嬸|sió-tsím
+姊夫|姊夫|tsé-hu
+妹夫|妹婿|muē-sài
+大舅|舅仔|kū-á
+小舅|舅仔|kū-á
+大姨|姨仔|î-á
+小姨|姨仔|î-á
+親家公|親家|tshin-ke
+親家母|親家姆|tshin-ke-ḿ
+媳婦|新婦|sin-pū
+女婿|囝婿|kiánn-sài
+孫子|孫|sun
+孫女|孫女|sun-lú
+外孫|外孫|guā-sun
+外孫女|外孫女|guā-sun-lú
+曾孫|曾孫|tsing-sun
+姪子|姪仔|tit-á
+姪女|姪女|tit-lú
+外甥|外甥|guā-sing
+外甥女|外甥女|guā-sing-lú
+堂哥|堂兄|tông-hiann
+堂弟|堂弟|tông-tī
+堂姊|堂姊|tông-tsé
+堂妹|堂妹|tông-muē
+表哥|表兄|piáu-hiann
+表弟|表弟|piáu-tī
+表姊|表姊|piáu-tsé
+表妹|表妹|piáu-muē
+`;
+// 堂／表＋輩分（例：表舅）用的詞根
+const TWBASE = `
+伯|伯|peh
+叔|叔|tsik
+姑|姑|koo
+舅|舅|kū
+姨|姨|î
+伯母|伯姆|peh-ḿ
+嬸嬸|嬸|tsím
+舅媽|妗|kīm
+姨丈|姨丈|î-tiūnn
+姑丈|姑丈|koo-tiūnn
+姪子|姪仔|tit-á
+姪女|姪女|tit-lú
+嫂|嫂|só
+姊夫|姊夫|tsé-hu
+妹夫|妹婿|muē-sài
+外甥|外甥|guā-sing
+外甥女|外甥女|guā-sing-lú
+`;
+const TW = {}, TWB = {};
+const loadTW = (txt, o) => txt.trim().split("\n").forEach(l => { const [k, h, t] = l.split("|"); o[k] = [h, t]; });
+loadTW(TWRAW, TW); loadTW(TWBASE, TWB);
+function twOne(c) {
+  if (TW[c]) return TW[c];
+  let m = c.match(/^(堂|表)(.+)$/);
+  if (m && TWB[m[2]]) return [m[1] + TWB[m[2]][0], (m[1] === "堂" ? "tông-" : "piáu-") + TWB[m[2]][1]];
+  m = c.match(/^外(.+)$/);
+  if (m && TW[m[1]]) return ["外" + TW[m[1]][0], "guā-" + TW[m[1]][1]];
+  return null;
+}
+function twOf(call) {
+  const r = call.split("／").map(twOne);
+  if (!r.length || r.some(x => !x)) return null;
+  return [r.map(x => x[0]).join("／"), r.map(x => x[1]).join("／")];
+}
+
+const LABEL = {F:"爸爸",M:"媽媽",E:"哥哥",L:"弟弟",e:"姊姊",l:"妹妹",H:"老公",W:"老婆",S:"兒子",D:"女兒"};
+// 路徑簡化：爸爸的老婆＝媽媽、媽媽的老公＝爸爸、自己的配偶之子女＝子女
+function normalize(p) {
+  let s = p, prev;
+  do {
+    prev = s;
+    s = s.replace(/FW/g, "M").replace(/MH/g, "F")
+         .replace(/[HW]([SD])/g, "$1").replace(/^[HW]([EeLl][SD]+)$/, "$1")
+         .replace(/([EeLl])([FM])/g, "$2")
+         .replace(/[Ee]([Ee])/g, "$1").replace(/[Ll]([Ll])/g, "$1");
+  } while (s !== prev);
+  return s;
+}
+
+// 規則推算：資料表沒有的較遠關係，依規則組合
+function derive(k) {
+  let m;
+  if ((m = k.match(/^[FM]{4}$/))) { const f = k[3] === "F"; return {call: (k[0] === "M" ? "外" : "") + (f ? "高祖父" : "高祖母"), formal: f ? "高祖父" : "高祖母", note: "曾祖父母的父母"}; }
+  if ((m = k.match(/^[SD]{3,4}$/))) { const g = k.length === 3 ? "曾孫" : "玄孫", d = k.slice(-1) === "D" ? "女" : ""; const c = (k[0] === "D" ? "外" : "") + g + d; return {call: c, formal: c, note: k.length === 3 ? "孫子的孩子" : "曾孫的孩子"}; }
+  // 父母的堂／表兄弟姊妹
+  if ((m = k.match(/^([FM])([FM])([EeLl])([SD])([HW])?$/))) {
+    const [, P, G, X, C, sp] = m;
+    const tang = G === "F" && (X === "E" || X === "L"), pf = tang ? "堂" : "表";
+    if (sp && !((C === "S" && sp === "W") || (C === "D" && sp === "H"))) return null;
+    let call, formal;
+    if (P === "F") {
+      if (C === "S") { call = sp ? pf + "伯母／" + pf + "嬸嬸" : pf + "伯／" + pf + "叔"; formal = sp ? pf + "伯母／" + pf + "叔母" : pf + "伯父／" + pf + "叔父"; }
+      else { call = sp ? pf + "姑丈" : pf + "姑"; formal = sp ? pf + "姑丈" : pf + "姑母"; }
+    } else {
+      if (C === "S") { call = pf + (sp ? "舅媽" : "舅"); formal = pf + (sp ? "舅母" : "舅父"); }
+      else { call = pf + (sp ? "姨丈" : "姨"); formal = pf + (sp ? "姨丈" : "姨母"); }
+    }
+    return {call, formal, note: (P === "F" ? "爸爸" : "媽媽") + "的" + pf + "兄弟姊妹" + (sp ? "的配偶" : "") + (P === "F" && C === "S" && !sp ? "；比爸爸大叫伯，比爸爸小叫叔" : "")};
+  }
+  // 堂／表兄弟姊妹的孩子或配偶
+  if ((m = k.match(/^([FM])([EeLl])([SD])([SD])$/))) {
+    const pf = m[1] === "F" && (m[2] === "E" || m[2] === "L") ? "堂" : "表";
+    const c = pf + (m[3] === "S" ? (m[4] === "S" ? "姪子" : "姪女") : (m[4] === "S" ? "外甥" : "外甥女"));
+    return {call: c, formal: c, note: "堂表兄弟姊妹的孩子"};
+  }
+  if ((m = k.match(/^([FM])([EeLl])([SD])([HW])$/))) {
+    if ((m[3] === "S") !== (m[4] === "W")) return null;
+    const pf = m[1] === "F" && (m[2] === "E" || m[2] === "L") ? "堂" : "表";
+    const c = m[3] === "S" ? pf + "嫂／" + pf + "弟媳" : pf + "姊夫／" + pf + "妹夫";
+    return {call: c, formal: c, note: "依對方比你大或小選擇稱呼"};
+  }
+  // 姪孫、外甥孫
+  if ((m = k.match(/^([EeLl])([SD])([SD])$/))) {
+    const bro = m[1] === "E" || m[1] === "L";
+    if (!bro && m[2] === "D") return null;
+    const c = (bro ? (m[2] === "S" ? "姪孫" : "姪外孫") : "外甥孫") + (m[3] === "D" ? "女" : "");
+    return {call: c, formal: c, note: "兄弟姊妹的孫輩"};
+  }
+  return null;
+}
+const GEN = {F: 1, M: 1, S: -1, D: -1};
+function resolve(path) {
+  const key = normalize(path);
+  if (DB[key]) return DB[key];
+  const d = derive(key); if (d) return d;
+  const m = key.match(/^([HW])([FM].+)$/);   // 配偶的長輩：跟著配偶叫
+  if (m) {
+    const r = resolve(m[2]);
+    if (r) { const w = m[1] === "H" ? "先生" : "太太"; return {call: r.call, formal: (m[1] === "H" ? "夫之" : "妻之") + r.formal, note: "跟著" + w + "稱呼（對方是" + w + "的長輩）"}; }
+  }
+  return null;
+}
+function lookup(path) {
+  if (!path) return {call: "我", formal: "", note: "請從下方選擇第一個關係"};
+  const r = resolve(path); if (r) return r;
+  const key = normalize(path);
+  let g = 0; [...key].forEach(k => g += GEN[k] || 0);
+  let known = null, n = 0;
+  for (let i = key.length - 1; i >= 1; i--) { const x = resolve(key.slice(0, i)); if (x) { known = x; n = i; break; } }
+  const rest = [...key.slice(n)].map(k => LABEL[k]).join("的");
+  const gt = g > 0 ? "長輩（高你 " + g + " 輩）" : g < 0 ? "晚輩（低你 " + (-g) + " 輩）" : "平輩";
+  const tip = g < 0 ? "晚輩通常直接叫名字即可。" : g > 0 ? "長輩可依家人的叫法稱呼，或請教父母。" : "平輩可依年紀叫「大哥／大姊」，或直接叫名字。";
+  return {call: "關係較遠", formal: "", note: gt + "，" + (/[HW]/.test(key) ? "屬姻親" : "屬血親") + "。" + (known ? "可確認到「" + known.call + "」，再往下是：" + rest + "。" : "") + tip};
+}
+
+let path = "";
+const $ = id => document.getElementById(id);
+function render() {
+  const el = $("path");
+  el.innerHTML = "<i>我</i>" + [...path].map(k => "<i>的</i><b>" + LABEL[k] + "</b>").join("");
+  const r = lookup(path);
+  const res = $("res");
+  res.textContent = r.call;
+  res.classList.toggle("long", r.call.length > 6);
+  $("formal").textContent = r.formal ? "正式稱謂：" + r.formal : "";
+  $("note").textContent = r.note || "";
+  const t = path ? twOf(r.call) : null;
+  $("tw").textContent = t ? "閩南語：" + t[0] + "（" + t[1] + "）" : "";
+}
+function press(k) { if (path.length < 10) { path += k; render(); } }
+let hist = [];
+try { hist = JSON.parse(localStorage.getItem("kin-hist") || "[]"); } catch (e) {}
+function renderHist() {
+  const ul = $("hist");
+  ul.innerHTML = "";
+  if (!hist.length) { ul.innerHTML = '<li class="empty">按下「＝」就會記在這裡</li>'; $("clr").hidden = true; return; }
+  hist.forEach(h => {
+    const li = document.createElement("li");
+    li.innerHTML = "<span></span><span></span>";
+    li.children[0].textContent = "我的" + [...h.p].map(k => LABEL[k]).join("的");
+    li.children[1].textContent = h.c;
+    ul.appendChild(li);
+  });
+  $("clr").hidden = false;
+}
+function save() { try { localStorage.setItem("kin-hist", JSON.stringify(hist)); } catch (e) {} }
+
+document.querySelector(".keys").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.k) return press(b.dataset.k);
+  if (b.dataset.act === "ac") { path = ""; render(); }
+  else if (b.dataset.act === "del") { path = path.slice(0, -1); render(); }
+  else if (b.dataset.act === "eq" && path) {
+    hist.unshift({p: path, c: lookup(path).call});
+    hist = hist.slice(0, 8); save(); renderHist();
+  }
+});
+$("clr").addEventListener("click", () => { hist = []; save(); renderHist(); });
+let fam = [];
+try { fam = JSON.parse(localStorage.getItem("kin-fam") || "[]"); } catch (e) {}
+const saveFam = () => { try { localStorage.setItem("kin-fam", JSON.stringify(fam)); } catch (e) {} };
+function renderFam() {
+  const ul = $("famlist"); ul.innerHTML = "";
+  if (!fam.length) { ul.innerHTML = '<li class="empty">查到稱謂後，按「存入家人」記下對方的名字</li>'; return; }
+  fam.forEach((f, i) => {
+    const li = document.createElement("li"); li.innerHTML = "<span></span><span></span>";
+    li.children[0].textContent = f.n; li.children[1].textContent = f.c + "　✕";
+    li.children[1].onclick = () => { if (confirm("刪除「" + f.n + "」？")) { fam.splice(i, 1); saveFam(); renderFam(); } };
+    ul.appendChild(li);
+  });
+}
+const cur = () => lookup(path).call;
+$("say").onclick = () => { if (!path || !window.speechSynthesis) return; const u = new SpeechSynthesisUtterance(cur().replace("／", "，")); u.lang = "zh-TW"; speechSynthesis.cancel(); speechSynthesis.speak(u); };
+$("share").onclick = () => {
+  if (!path) return;
+  const t = "我的" + [...path].map(k => LABEL[k]).join("的") + "，要叫「" + cur() + "」";
+  if (navigator.share) navigator.share({text: t}).catch(() => {}); else if (navigator.clipboard) navigator.clipboard.writeText(t);
+};
+$("fam").onclick = () => {
+  if (!path) return;
+  const n = prompt("對方的名字？（只存在這支手機）"); if (!n) return;
+  fam.unshift({n: n.trim().slice(0, 20), c: cur()}); fam = fam.slice(0, 50); saveFam(); renderFam();
+};
+render(); renderHist(); renderFam();
+</script>
+</body>
+</html>
