@@ -23,6 +23,7 @@ h1{font-size:18px;margin:0 0 4px;font-weight:700}
 .res.long{font-size:30px}
 .formal{text-align:right;font-size:14px;min-height:20px}
 .tw{text-align:right;font-size:14px;min-height:20px;margin-top:2px;font-weight:500}
+.deg{text-align:right;font-size:14px;line-height:1.6;margin-top:4px;font-weight:600;white-space:pre-line}
 .note{text-align:right;font-size:13px;opacity:.8;min-height:20px;line-height:1.5;margin-top:2px}
 .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:12px}
 button{font:inherit;border:0;border-radius:12px;color:#fff;font-size:18px;font-weight:600;min-height:56px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.28);-webkit-tap-highlight-color:transparent}
@@ -46,7 +47,7 @@ button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 <body>
 <div class="wrap">
   <h1>親戚稱謂計算機</h1>
-  <p class="tip">從「我」出發，依序按下關係，例如「爸爸 → 哥哥 → 老婆」，就會算出該怎麼稱呼（台灣用語）。</p>
+  <p class="tip">從「我」出發，依序按下關係，例如「爸爸 → 哥哥 → 老婆」，就會算出該怎麼稱呼（台灣用語）。最多連按 20 步，往上、往下各可算到九代。</p>
 
   <div class="calc">
     <div class="lcd" aria-live="polite">
@@ -55,6 +56,7 @@ button:focus-visible{outline:3px solid #fff;outline-offset:2px}
         <div class="res" id="res">我</div>
         <div class="formal" id="formal"></div>
         <div class="tw" id="tw"></div>
+        <div class="deg" id="deg"></div>
         <div class="note" id="note"></div>
       </div>
     </div>
@@ -84,7 +86,7 @@ button:focus-visible{outline:3px solid #fff;outline-offset:2px}
     <button class="clr" id="clr" hidden>清除紀錄</button>
   </div>
 
-  <p class="foot">稱謂會因家族、地區與族群（閩南、客家等）略有差異，本工具以台灣常見用法為主，僅供參考；有排行時可在稱謂前加「大、二、三…」，最小的常加「小」或「么」。</p>
+  <p class="foot">親等依民法第 967～971 條計算（配偶無親等；姻親限於血親之配偶、配偶之血親、配偶之血親之配偶），僅供參考，法律問題請洽律師。稱謂會因家族、地區與族群（閩南、客家等）略有差異，本工具以台灣常見用法為主，僅供參考；有排行時可在稱謂前加「大、二、三…」，最小的常加「小」或「么」。</p>
 </div>
 
 <script>
@@ -123,8 +125,8 @@ Ml|阿姨|姨母|媽媽的妹妹；最小的常叫「小阿姨」
 MlH|姨丈|姨丈|阿姨的先生
 FFF|曾祖父|曾祖父|閩南語常叫「祖公、阿祖」
 FFM|曾祖母|曾祖母|閩南語常叫「祖媽、阿祖」
-FMF|曾外祖父|曾外祖父|爸爸的外公
-FMM|曾外祖母|曾外祖母|爸爸的外婆
+FMF|外曾祖父|外曾祖父|奶奶的爸爸
+FMM|外曾祖母|外曾祖母|奶奶的媽媽
 MFF|曾外祖父|曾外祖父|外公的爸爸
 MFM|曾外祖母|曾外祖母|外公的媽媽
 FFE|伯公|伯祖父|爺爺的哥哥
@@ -377,12 +379,12 @@ function twOf(call) {
 
 const LABEL = {F:"爸爸",M:"媽媽",E:"哥哥",L:"弟弟",e:"姊姊",l:"妹妹",H:"老公",W:"老婆",S:"兒子",D:"女兒"};
 // 路徑簡化：爸爸的老婆＝媽媽、媽媽的老公＝爸爸、自己的配偶之子女＝子女
-function normalize(p) {
+function normalize(p, keep) {
   let s = p, prev;
   do {
     prev = s;
     s = s.replace(/FW/g, "M").replace(/MH/g, "F")
-         .replace(/[HW]([SD])/g, "$1").replace(/^[HW]([EeLl][SD]+)$/, "$1")
+         .replace(/[HW]([SD])/g, "$1").replace(/^[HW]([EeLl][SD]+)$/, keep ? "$&" : "$1")
          .replace(/([EeLl])([FM])/g, "$2")
          .replace(/[Ee]([Ee])/g, "$1").replace(/[Ll]([Ll])/g, "$1");
   } while (s !== prev);
@@ -430,11 +432,76 @@ function derive(k) {
   }
   return null;
 }
+// 親等：依民法第967～971條（血親：上數＋下數；姻親：血親之配偶、配偶之血親、配偶之血親之配偶）
+const CN = ["零","一","二","三","四","五","六","七","八","九","十"];
+function degText(path) {
+  const k = normalize(path, true), B = /^([FM]*)([EeLl]?)([SD]*)$/;
+  const isB = b => b.length > 0 && B.test(b);
+  const bd = b => { const x = b.match(B); return x[1].length + x[3].length + (x[2] ? 2 : 0); };
+  const fmt = (n, type, extra) => "第" + (CN[n] || n) + "親等・" + type + (extra || "") + "\n三親等內：" + (n <= 3 ? "是" : "否") + "　四親等內：" + (n <= 4 ? "是" : "否");
+  let m;
+  if (/^[HW]$/.test(k)) return "配偶：法律上沒有親等";
+  if (isB(k)) {
+    const x = k.match(B), col = x[2] || (x[1] && x[3]);
+    return fmt(bd(k), col ? "旁系血親" : "直系血親", x[2] ? "（上數 " + (x[1].length + 1) + " 世＋下數 " + (x[3].length + 1) + " 世）" : "");
+  }
+  if ((m = k.match(/^[HW]([^HW]+)$/)) && isB(m[1])) return fmt(bd(m[1]), "姻親（配偶之血親）");
+  if ((m = k.match(/^([^HW]+)[HW]$/)) && isB(m[1])) return fmt(bd(m[1]), "姻親（血親之配偶）");
+  if ((m = k.match(/^[HW]([^HW]+)[HW]$/)) && isB(m[1])) return fmt(bd(m[1]), "姻親（配偶之血親之配偶）");
+  return "不屬於民法規定的親屬範圍\n三親等內：否　四親等內：否";
+}
+// 上下各九代：直系與旁系的稱謂規則
+const UPG = ["", "", "", "曾", "高", "天", "烈", "太", "遠", "鼻"];
+const DNM = ["", "子", "孫", "曾孫", "玄孫", "來孫", "晜孫", "仍孫", "雲孫", "耳孫"];
+function deep(k) {
+  let m;
+  const res = (c, n) => ({call: c, formal: c, note: n});
+  if ((m = k.match(/^[FM]{2,9}$/))) {   // 直系尊親屬
+    const a = k.length, ext = k[0] === "M", mid = k.slice(0, -1).includes("M"), mo = k.slice(-1) === "F" ? "父" : "母";
+    let c = (a === 2 ? "" : UPG[a]) + (ext ? "外" : "") + "祖" + mo;
+    if (!ext && mid) c = "外" + c;
+    return res(c, "往上第 " + a + " 代的直系長輩");
+  }
+  if ((m = k.match(/^[SD]{2,9}$/))) {   // 直系卑親屬
+    const c = (k.slice(0, -1).includes("D") ? "外" : "") + DNM[k.length] + (k.slice(-1) === "D" ? "女" : "");
+    return res(c, "往下第 " + k.length + " 代的直系晚輩");
+  }
+  if ((m = k.match(/^([SD]{2,9})([HW])$/))) {   // 晚輩的配偶
+    const s = m[1], last = s.slice(-1);
+    if ((last === "S") !== (m[2] === "W")) return null;
+    const c = (s.slice(0, -1).includes("D") ? "外" : "") + DNM[s.length] + (last === "S" ? "媳婦" : "女婿");
+    return res(c, "晚輩的配偶");
+  }
+  if ((m = k.match(/^([FM]{3,9})([EeLl])$/))) {   // 曾祖輩以上的兄弟姊妹
+    const up = m[1], s = m[2], bro = s === "E" || s === "L", ext = up[0] === "M", mid = up.slice(0, -1).includes("M");
+    const x = up.slice(-1) === "M" ? (bro ? "舅" : "姨") : (s === "E" ? "伯" : s === "L" ? "叔" : "姑");
+    let c = UPG[up.length] + (ext ? "外" : "") + x + "祖" + (bro ? "父" : "母");
+    if (!ext && mid) c = "外" + c;
+    return res(c, "往上第 " + up.length + " 代長輩的兄弟姊妹");
+  }
+  if ((m = k.match(/^([EeLl])([SD]{3,8})$/))) {   // 姪孫、外甥孫以下
+    const ch = m[2], c = ((m[1] === "E" || m[1] === "L") ? "姪" : "外甥") + (ch.slice(0, -1).includes("D") ? "外" : "") + DNM[ch.length] + (ch.slice(-1) === "D" ? "女" : "");
+    return res(c, "兄弟姊妹的第 " + ch.length + " 代後輩");
+  }
+  return null;
+}
+function far(k) {   // 同宗較遠的旁系（再從、三從、族…）
+  const m = k.match(/^([FM]*)([EeLl])([SD]+)$/);
+  if (!m) return null;
+  const a = m[1].length, b = m[3].length, u = a + 1, kk = u - (b + 1), male = m[3].slice(-1) === "S";
+  const pf = a === 1 ? (m[1] === "F" && (m[2] === "E" || m[2] === "L") ? "堂" : "表") : "族";
+  let c;
+  if (kk === 0) { const n = ["", "", "", "再從", "三從", "四從", "五從", "六從", "七從", "八從", "九從"][u]; c = n + (male ? "哥／" + n + "弟" : "姊／" + n + "妹"); }
+  else if (kk > 0) c = kk === 1 ? pf + (male ? "伯／" + pf + "叔" : "姑") : pf + (kk === 2 ? "" : UPG[kk]) + "祖" + (male ? "父" : "母");
+  else c = pf + "姪" + (-kk === 1 ? (male ? "子" : "女") : DNM[-kk] + (male ? "" : "女"));
+  return {call: c, formal: c, note: "共同祖先在往上第 " + u + " 代；同宗關係較遠，依輩分與年紀稱呼"};
+}
 const GEN = {F: 1, M: 1, S: -1, D: -1};
 function resolve(path) {
   const key = normalize(path);
   if (DB[key]) return DB[key];
-  const d = derive(key); if (d) return d;
+  const e = deep(key); if (e) return e;
+  const d = derive(key) || far(key); if (d) return d;
   const m = key.match(/^([HW])([FM].+)$/);   // 配偶的長輩：跟著配偶叫
   if (m) {
     const r = resolve(m[2]);
@@ -466,10 +533,11 @@ function render() {
   res.classList.toggle("long", r.call.length > 6);
   $("formal").textContent = r.formal ? "正式稱謂：" + r.formal : "";
   $("note").textContent = r.note || "";
+  $("deg").textContent = path ? degText(path) : "";
   const t = path ? twOf(r.call) : null;
   $("tw").textContent = t ? "閩南語：" + t[0] + "（" + t[1] + "）" : "";
 }
-function press(k) { if (path.length < 10) { path += k; render(); } }
+function press(k) { if (path.length < 20) { path += k; render(); } }
 let hist = [];
 try { hist = JSON.parse(localStorage.getItem("kin-hist") || "[]"); } catch (e) {}
 function renderHist() {
